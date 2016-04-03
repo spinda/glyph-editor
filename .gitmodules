@@ -1,3 +1,6 @@
 [submodule "glyph"]
 	path = glyph
 	url = git://github.com/spinda/glyph
+[submodule "reactive-banana"]
+	path = reactive-banana
+	url = git://github.com/HeinrichApfelmus/reactive-banana

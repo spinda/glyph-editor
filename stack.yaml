@@ -4,6 +4,7 @@ packages:
 - .
 - glyph
 extra-deps:
+- reactive-banana-1.1.0.0
 - wx-0.92.2.0
 - wxc-0.92.2.0
 - wxcore-0.92.2.0
