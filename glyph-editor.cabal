@@ -22,6 +22,7 @@ executable glyph-editor
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base >= 4.4 && < 5
                      , glyph
+                     , lens >= 4.13 && < 4.14
                      , reactive-banana >= 1.1 && < 1.2
                      , wx >= 0.92 && < 0.93
                      , wxcore >= 0.92 && < 0.93
