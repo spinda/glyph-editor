@@ -1,0 +1,3 @@
+[submodule "glyph"]
+	path = glyph
+	url = git://github.com/spinda/glyph
