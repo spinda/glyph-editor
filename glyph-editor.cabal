@@ -4,7 +4,7 @@ synopsis:              GUI editor for the Glyph handwriting synthesis engine
 description:           TODO
 homepage:              https://github.com/spinda/glyph-editor#readme
 bug-reports:           https://github.com/spinda/glyph-editor/issues
-license:               BSD3
+license:               GPL-3
 license-file:          LICENSE
 author:                Michael Smith
 maintainer:            Michael Smith <michael@spinda.net>

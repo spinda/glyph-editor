@@ -11,6 +11,6 @@ synthesis engine.
 
 ## Legal
 
-Glyph and Glyph Editor are (c) 2016 Michael Smith and released under the
-[BSD 3-clause license](/LICENSE).
+Glyph Editor is (c) 2016 Michael Smith and released under the
+[GPLv3 license](/LICENSE).
 
