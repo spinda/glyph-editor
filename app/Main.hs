@@ -16,33 +16,27 @@
 -- along with Glyph Editor. If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TupleSections #-}
 
-import qualified Codec.Picture as P
-
-import Control.Monad
-
+import Data.Maybe
 import Data.Version
 
-import qualified Diagrams.Prelude as D
+import Diagrams.Prelude (Any, P2, QDiagram, V2)
 import Diagrams.Backend.Rasterific
-import Diagrams.Core.Compile
 
-import Graphics.UI.WX as WX
-import Graphics.UI.WX.Draw
-import Graphics.UI.WX.Types
+import Graphics.UI.WX
 
-import Graphics.UI.WXCore.Image
-import Graphics.UI.WXCore.WxcClassesAL
-import Graphics.UI.WXCore.WxcClassTypes
-import Graphics.UI.WXCore.WxcTypes
-
-import Reactive.Banana as B
+import Reactive.Banana
+import Reactive.Banana.Frameworks
 import Reactive.Banana.WX
 
 import Glyph.Render
 import Glyph.Types
 
 import Paths_glyph_editor
+
+import Model
+import WX
 
 main :: IO ()
 main = start $ do
@@ -55,82 +49,41 @@ main = start $ do
 
   let networkDescription :: MomentIO ()
       networkDescription = mdo
-        eAddPoint <- event1' p click
-        ePoints <- accumE [] $ unions
-          [ (\p -> (++ [p])) <$> eAddPoint
+        eClickPanel      <- ((processClick <$> bStroke) <@>) <$> event1' p click
+        eRightClickPanel <- ((processClick <$> bStroke) <@>) <$> event1' p clickRight
+        eDragPanel       <- fmap (pointToP2 300 300) <$> event1' p drag
+
+        let eAddPoint   = fst <$> filterE (isNothing . snd) eClickPanel
+        let eClickPoint = filterJust $ (\(p, n) -> (p, ) <$> n) <$> eClickPanel
+        let eDragPoint  = filterJust $ ((\s pt -> (pt, ) <$> s) <$> bSelectedPoint) <@> eDragPanel
+        let eDelPoint   = filterJust $ snd <$> eRightClickPanel
+
+        eStroke <- accumE initStroke $ unions
+          [ addStrokePoint <$> eAddPoint
+          , uncurry dragStrokePoint <$> eDragPoint
+          , delStrokePoint <$> eDelPoint
           ]
-        bPoints <- stepper [] ePoints
+        bStroke <- stepper initStroke eStroke
 
-        let bStrokeSteps :: Behavior [StrokeStep]
-            bStrokeSteps = map mkStrokeStep <$> bPoints
+        bSelectedPoint <- accumB Nothing $ unions
+          [ (const . Just . snd) <$> eClickPoint
+          , (const . Just . length . strokePoints <$> bStroke) <@ eAddPoint
+          , (const Nothing) <$ eDelPoint
+          ]
 
-        let bStroke :: Behavior Stroke
-            bStroke = mkStroke <$> bStrokeSteps
+        let bDiagram = renderPanel <$> bStroke <*> bSelectedPoint
 
-        sink p [on paint :== paintPanel <$> bStroke <*> bPoints]
-        reactimate $ repaint p <$ eAddPoint
-        reactimate $ print <$> eAddPoint
+        paintB p $ paintPanel <$> bDiagram
 
   network <- compile networkDescription
   actuate network
 
-event1' :: w -> WX.Event w (a -> IO ()) -> MomentIO (B.Event a)
-event1' widget e = do
-  addHandler <- liftIO $ event1ToAddHandler' widget e
-  fromAddHandler addHandler
-
-event1ToAddHandler' :: w -> WX.Event w (a -> IO ()) -> IO (AddHandler a)
-event1ToAddHandler' widget e = do
-    (addHandler, runHandlers) <- newAddHandler
-    set widget [on e := runHandlers]
-    return addHandler
-
-mkStrokeStep :: WX.Point -> StrokeStep
-mkStrokeStep (Point x y) =
-  StrokeStep (D.mkP2 (fromIntegral x / 300) (1 - fromIntegral y / 300)) 1 NormalStep
-
-mkStroke :: [StrokeStep] -> Stroke
-mkStroke strokes = Stroke
-  { strokeHead = []
-  , strokeBody = strokes
-  , strokeTail = []
-  , strokeStartCap = SharpCap
-  , strokeEndCap = SharpCap
-  }
-
-paintPanel :: Stroke -> [WX.Point] -> DC a -> Rect -> IO ()
-paintPanel stroke points dc rect = do
-  image <- imageCreateSized $ Size 300 300
-  withPixelBuffer image $ copyImageToPixelBuffer rendered
-  drawImage dc image (rectTopLeft rect) []
-  imageDelete image
-  unless (null points) $ do
-    mapM_ (drawPointHandle dc 1) (init points)
-    drawPointHandle dc 2 $ last points
+processClick :: Stroke -> Point -> (P2 Double, Maybe Int)
+processClick stroke pt = (pt', getClickedPoint stroke pt')
   where
-    diagram = D.rectEnvelope (D.mkP2 0 0) (D.V2 1 1) $ renderStroke stroke
-    rendered = renderDia Rasterific options diagram
-    options = RasterificOptions $ D.dims $ D.V2 300 300
+    pt' = pointToP2 300 300 pt
 
-drawPointHandle :: DC a -> Int -> Point -> IO ()
-drawPointHandle dc width (Point x y) =
-  circle dc (Point (x - 2) (y - 2)) 4 [color := green, penWidth := width]
-
-copyImageToPixelBuffer :: P.Image P.PixelRGBA8 -> PixelBuffer -> IO ()
-copyImageToPixelBuffer img pixbuf = mapM_ copyRow [0..P.imageHeight img - 1]
-  where
-    copyRow y = mapM_ (`copyPixel` y) [0..P.imageWidth img - 1]
-    copyPixel x y = pixelBufferSetPixel pixbuf (Point x y) $
-      pixelToColor $ P.pixelAt img x y
-
-pixelToColor :: P.PixelRGBA8 -> Color
-pixelToColor p@(P.PixelRGBA8 r g b a) = rgb (px r) (px b) (px g)
-  where
-    px :: P.Pixel8 -> P.Pixel8
-    px v = round $ 255 * ((1 - a') + (a' * cv v))
-
-    cv :: P.Pixel8 -> Float
-    cv v = fromIntegral v / 255
-
-    a' = fromIntegral a / 255
+paintPanel :: QDiagram Rasterific V2 Double Any -> DC a -> Rect -> IO ()
+paintPanel diagram dc rect =
+  drawDiagram dc white diagram (rect { rectWidth = 300, rectHeight = 300 })
 
