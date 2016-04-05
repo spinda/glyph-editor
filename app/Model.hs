@@ -90,9 +90,9 @@ splitSelected stroke (Just n) =
 
 renderPanel :: Renderable (Path V2 Double) b
             => Stroke -> Maybe Int -> QDiagram b V2 Double Any
-renderPanel stroke sel = rectEnvelope (0 ^& 0) (1 ^& 1) $ mconcat $
-  renderStroke stroke : handles
+renderPanel stroke sel = (rectEnvelope (0 ^& 0) (1 ^& 1) dia) # bg white
   where
+    dia = mconcat $ renderStroke stroke : handles
     handles =
       maybeToList (renderPointHandle True <$> it) ++
       (renderPointHandle False <$> rest)

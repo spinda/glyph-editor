@@ -53,41 +53,28 @@ paintB w b = do
   e <- changes b
   reactimate' $ (fmap $ \x -> set w [on paint := x] >> repaint w) <$> e
 
-drawDiagram :: DC a -> W.Color -> QDiagram Rasterific V2 Double Any -> Rect -> IO ()
-drawDiagram dc bgColor diagram rect = do
-  image <- imageCreateSized $ Size (rectWidth rect) (rectHeight rect)
-  withPixelBuffer image $ copyImageToPixelBuffer bgColor rendered
-  drawImage dc image (rectTopLeft rect) []
-  imageDelete image
+drawDiagram :: DC a -> QDiagram Rasterific V2 Double Any -> Rect -> IO ()
+drawDiagram dc diagram rect = drawJuicyImage dc rendered rect
   where
     rendered = renderDia Rasterific options diagram
     options = RasterificOptions $ dims size
     size = fromIntegral (rectWidth rect) ^& fromIntegral (rectHeight rect)
 
-copyImageToPixelBuffer :: W.Color -> P.Image PixelRGBA8 -> PixelBuffer -> IO ()
-copyImageToPixelBuffer bgColor img pixbuf = mapM_ copyRow [0..imageHeight img - 1]
+drawJuicyImage :: DC a -> P.Image PixelRGBA8 -> Rect -> IO ()
+drawJuicyImage dc img rect = do
+  img' <- imageCreateFromPixels size colors
+  drawImage dc img' (rectTopLeft rect) []
+  imageDelete img'
   where
-    copyRow y = mapM_ (`copyPixel` y) [0..imageWidth img - 1]
-    copyPixel x y = pixelBufferSetPixel pixbuf (Point x y) $
-      pixelToColor $ blendPixel bgColor' $ pixelAt img x y
-    bgColor' = colorToPixel bgColor
+    size = Size (rectWidth rect) (rectHeight rect)
+    colors = imageToColors img
 
-blendPixel :: PixelRGB8 -> PixelRGBA8 -> PixelRGB8
-blendPixel (PixelRGB8 r0 g0 b0) (PixelRGBA8 r g b a) =
-  PixelRGB8 (px r0 r) (px g0 g) (px b0 b)
+imageToColors :: P.Image PixelRGBA8 -> [W.Color]
+imageToColors img = concatMap getRow [0..imageHeight img - 1]
   where
-    px :: Pixel8 -> Pixel8 -> Pixel8
-    px x y = round $ 255 * (((1 - av) * cv x) + (av * cv y))
+    getRow y = map (`getPixel` y) [0..imageWidth img - 1]
+    getPixel x y = pixelToColor $ pixelAt img x y
 
-    cv :: Pixel8 -> Float
-    cv v = fromIntegral v / 255
-
-    av :: Float
-    av = cv a
-
-pixelToColor :: PixelRGB8 -> W.Color
-pixelToColor (PixelRGB8 r g b) = rgb r g b
-
-colorToPixel :: W.Color -> PixelRGB8
-colorToPixel c = PixelRGB8 (colorRed c) (colorGreen c) (colorBlue c)
+pixelToColor :: PixelRGBA8 -> W.Color
+pixelToColor (PixelRGBA8 r g b a) = rgba r g b a
 

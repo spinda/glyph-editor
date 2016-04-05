@@ -71,9 +71,7 @@ main = start $ do
           , (const Nothing) <$ eDelPoint
           ]
 
-        let bDiagram = renderPanel <$> bStroke <*> bSelectedPoint
-
-        paintB p $ paintPanel <$> bDiagram
+        paintB p $ paintPanel <$> bStroke <*> bSelectedPoint
 
   network <- compile networkDescription
   actuate network
@@ -83,7 +81,9 @@ processClick stroke pt = (pt', getClickedPoint stroke pt')
   where
     pt' = pointToP2 300 300 pt
 
-paintPanel :: QDiagram Rasterific V2 Double Any -> DC a -> Rect -> IO ()
-paintPanel diagram dc rect =
-  drawDiagram dc white diagram (rect { rectWidth = 300, rectHeight = 300 })
+paintPanel :: Stroke -> Maybe Int -> DC a -> Rect -> IO ()
+paintPanel stroke sel dc rect =
+  drawDiagram dc diagram (rect { rectWidth = 300, rectHeight = 300 })
+  where
+    diagram = renderPanel stroke sel
 
