@@ -204,10 +204,7 @@ delStrokePoint :: Model -> Model
 delStrokePoint model@(Model strokes sel) = case sel of
   PointSelector sn pn -> model
     { modelStrokes = mapAt (delStrokePoint' pn) sn strokes
-    , modelSelection = case pn of
-        0 | length (strokeBody $ strokes !! sn) == 1 -> StrokeSelector sn
-          | otherwise -> PointSelector sn 0
-        _ -> PointSelector sn (pn - 1)
+    , modelSelection = StrokeSelector sn
     }
   _ -> model
 
