@@ -215,8 +215,11 @@ delStrokePoint' pn stroke = stroke { strokeBody = delAt pn $ strokeBody stroke }
 dragStrokePoint :: P2 Double -> Model -> Model
 dragStrokePoint pt model@(Model strokes sel) = case sel of
   PointSelector sn pn -> model
-    { modelStrokes = mapAt (dragStrokePoint' pt pn) sn strokes }
+    { modelStrokes = mapAt (dragStrokePoint' pt' pn) sn strokes }
   _ -> model
+  where
+    pt' = uncurry mkP2 $ bimap cap cap $ unp2 pt
+    cap = min 1 . max 0
 
 dragStrokePoint' :: P2 Double -> PointIndex -> Stroke -> Stroke
 dragStrokePoint' pt pn stroke = stroke
