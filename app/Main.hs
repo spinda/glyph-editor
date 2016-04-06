@@ -15,19 +15,21 @@
 -- You should have received a copy of the GNU General Public License
 -- along with Glyph Editor. If not, see <http://www.gnu.org/licenses/>.
 
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecursiveDo #-}
-{-# LANGUAGE TupleSections #-}
 
 import Data.Maybe
 import Data.Version
 
-import Diagrams.Prelude (Any, P2, QDiagram, V2)
+import Diagrams.Prelude (P2, (^&))
 import Diagrams.Backend.Rasterific
 
 import Graphics.UI.WX
 
+import Graphics.UI.WXCore.Events
+import Graphics.UI.WXCore.WxcClassesAL
+
 import Reactive.Banana
-import Reactive.Banana.Frameworks
 import Reactive.Banana.WX
 
 import Glyph.Render
@@ -42,48 +44,78 @@ main :: IO ()
 main = start $ do
   f <- frame [text := "Glyph Editor " ++ showVersion version]
   p <- panel f []
-  set f [ layout              := fill $ widget p
-        , outerSize           := sz 300 300
-        , fullRepaintOnResize := False
+  l <- singleListBox f []
+
+  addButton   <- button f [text := "Add"]
+  delButton   <- button f [text := "Remove"]
+  clearButton <- button f [text := "Clear"]
+
+  set f [ fullRepaintOnResize := False
+        , layout              := row 5 [ minsize (sz 300 300) (widget p)
+                                       , column 5 [ row 5 [ widget addButton
+                                                          , widget delButton
+                                                          , widget clearButton
+                                                          ]
+                                                  , fill $ widget l
+                                                  ]
+                                       ]
         ]
 
   let networkDescription :: MomentIO ()
       networkDescription = mdo
-        eClickPanel      <- ((processClick <$> bStroke) <@>) <$> event1' p click
-        eRightClickPanel <- ((processClick <$> bStroke) <@>) <$> event1' p clickRight
-        eDragPanel       <- fmap (pointToP2 300 300) <$> event1' p drag
-
-        let eAddPoint   = fst <$> filterE (isNothing . snd) eClickPanel
-        let eClickPoint = filterJust $ (\(p, n) -> (p, ) <$> n) <$> eClickPanel
-        let eDragPoint  = filterJust $ ((\s pt -> (pt, ) <$> s) <$> bSelectedPoint) <@> eDragPanel
-        let eDelPoint   = filterJust $ snd <$> eRightClickPanel
-
-        eStroke <- accumE initStroke $ unions
-          [ addStrokePoint <$> eAddPoint
-          , uncurry dragStrokePoint <$> eDragPoint
-          , delStrokePoint <$> eDelPoint
+        eModel <- accumE initModel $ unions
+          [ addStrokePoint  <$> eAddPoint
+          , delStrokePoint  <$  eDelPoint
+          , dragStrokePoint <$> eDragPoint
+          , ((\d -> updateSelection . querySelector d) <$> bDiagram) <@> eSelect
+          , addStroke   <$ eAddStroke
+          , delStroke   <$ eDelStroke
+          , clearStroke <$ eClearStroke
+          , updateSelection . StrokeSelector <$> eSelectStroke
           ]
-        bStroke <- stepper initStroke eStroke
+        bModel <- stepper initModel eModel
 
-        bSelectedPoint <- accumB Nothing $ unions
-          [ (const . Just . snd) <$> eClickPoint
-          , (const . Just . length . strokePoints <$> bStroke) <@ eAddPoint
-          , (const Nothing) <$ eDelPoint
-          ]
+        sink l [ items :==
+                   strokeListLabels . modelStrokes <$> bModel
+               , selection :==
+                   fromMaybe (-1) . selectedStroke . modelSelection <$> bModel
+               ]
 
-        paintB p $ paintPanel <$> bStroke <*> bSelectedPoint
+        let bDiagram = buildModelDiagram <$> bModel
+
+        eAddStroke    <- event0 addButton   command
+        eDelStroke    <- event0 delButton   command
+        eClearStroke  <- event0 clearButton command
+        eSelectStroke <- eventSelection l
+
+        eMouse <- event1 p mouse
+
+        let eSelect = fmap pointToP2 $ filterMouse eMouse $ \case
+              MouseLeftDown{} -> True
+              _ -> False
+        let eAddPoint = fmap pointToP2 $ filterMouse eMouse $ \case
+              MouseLeftDown _ mod -> mod == justShift
+              _ -> False
+        let eDelPoint = fmap pointToP2 $ filterMouse eMouse $ \case
+              MouseLeftDown _ mod -> mod == justControl
+              _ -> False
+        let eDragPoint = fmap pointToP2 $ filterMouse eMouse $ \case
+              MouseLeftDrag {} -> True
+              _ -> False
+
+        paintB p $ paintPanel <$> bDiagram
+        --reactimate $ print <$> eModel
 
   network <- compile networkDescription
   actuate network
 
-processClick :: Stroke -> Point -> (P2 Double, Maybe Int)
-processClick stroke pt = (pt', getClickedPoint stroke pt')
-  where
-    pt' = pointToP2 300 300 pt
+paintPanel :: ModelDiagram Rasterific -> DC a -> Rect -> IO ()
+paintPanel diagram dc rect =
+  drawDiagram dc diagram $ rect { rectWidth = 300, rectHeight = 300 }
 
-paintPanel :: Stroke -> Maybe Int -> DC a -> Rect -> IO ()
-paintPanel stroke sel dc rect =
-  drawDiagram dc diagram (rect { rectWidth = 300, rectHeight = 300 })
-  where
-    diagram = renderPanel stroke sel
+pointToP2 :: Point -> P2 Double
+pointToP2 (Point x y) = (fromIntegral x / 300) ^& (1 - fromIntegral y / 300)
+
+strokeListLabels :: [Stroke] -> [String]
+strokeListLabels strokes = map (("Stroke " ++) . show) [1..length strokes]
 

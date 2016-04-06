@@ -17,6 +17,7 @@
 
 module WX (
     event1'
+  , filterMouse
   , paintB
   , drawDiagram
   ) where
@@ -46,6 +47,9 @@ event1' w e = do
   liftIO $ set w [on e := runHandlers]
   fromAddHandler addHandler
 
+filterMouse :: R.Event EventMouse -> (EventMouse -> Bool) -> R.Event W.Point
+filterMouse e f = mousePos <$> filterE f e
+
 paintB :: Paint w => w -> Behavior (DC () -> Rect -> IO ()) -> MomentIO ()
 paintB w b = do
   x <- valueBLater b
@@ -53,7 +57,8 @@ paintB w b = do
   e <- changes b
   reactimate' $ (fmap $ \x -> set w [on paint := x] >> repaint w) <$> e
 
-drawDiagram :: DC a -> QDiagram Rasterific V2 Double Any -> Rect -> IO ()
+drawDiagram :: (Monoid b, Semigroup b)
+            => DC a -> QDiagram Rasterific V2 Double b -> Rect -> IO ()
 drawDiagram dc diagram rect = drawJuicyImage dc rendered rect
   where
     rendered = renderDia Rasterific options diagram
