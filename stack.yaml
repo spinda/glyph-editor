@@ -4,7 +4,7 @@ packages:
 - .
 - glyph
 extra-deps:
-- diagrams-wx-0.1.0.0
+- diagrams-wx-0.1.1.0
 - reactive-banana-1.1.0.0
 - wx-0.92.2.0
 - wxc-0.92.2.0
