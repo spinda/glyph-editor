@@ -3,4 +3,5 @@
 	url = git://github.com/spinda/glyph
 [submodule "reactive-banana"]
 	path = reactive-banana
-	url = git://github.com/HeinrichApfelmus/reactive-banana
+	url = git://github.com/spinda/reactive-banana
+	branch = mouse-event-helpers

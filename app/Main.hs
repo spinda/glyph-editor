@@ -91,18 +91,12 @@ main = start $ do
 
         eMouse <- event1 p mouse
 
-        let eSelect = fmap pointToP2 $ filterMouse eMouse $ \case
-              MouseLeftDown{} -> True
-              _ -> False
-        let eAddPoint = fmap pointToP2 $ filterMouse eMouse $ \case
-              MouseLeftDown _ m -> m == justShift
-              _ -> False
-        let eDelPoint = fmap pointToP2 $ filterMouse eMouse $ \case
-              MouseLeftDown _ m -> m == justControl
-              _ -> False
-        let eDragPoint = fmap pointToP2 $ filterMouse eMouse $ \case
-              MouseLeftDrag {} -> True
-              _ -> False
+        eSelect    <- (pointToP2 . fst <$>) <$> eventLeftDown p
+        eAddPoint  <- (pointToP2 <$>) . filterModifiers (== justShift)
+                        <$> eventLeftDown p
+        eDelPoint  <- (pointToP2 <$>) . filterModifiers (== justControl)
+                        <$> eventLeftDown p
+        eDragPoint <- (pointToP2 . fst <$>) <$> eventLeftDrag p
 
         paintB p $ paintPanel i <$> bDiagram
         --reactimate $ print <$> eModel

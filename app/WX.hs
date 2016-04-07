@@ -16,24 +16,13 @@
 -- along with Glyph Editor. If not, see <http://www.gnu.org/licenses/>.
 
 module WX (
-    event1'
-  , filterMouse
-  , paintB
+    paintB
   ) where
 
 import Graphics.UI.WX as W
 
 import Reactive.Banana as R
 import Reactive.Banana.Frameworks
-
-event1' :: w -> W.Event w (a -> IO ()) -> MomentIO (R.Event a)
-event1' w e = do
-  (addHandler, runHandlers) <- liftIO $ newAddHandler
-  liftIO $ set w [on e := runHandlers]
-  fromAddHandler addHandler
-
-filterMouse :: R.Event EventMouse -> (EventMouse -> Bool) -> R.Event W.Point
-filterMouse e f = mousePos <$> filterE f e
 
 paintB :: Paint w => w -> Behavior (DC () -> Rect -> IO ()) -> MomentIO ()
 paintB w b = do
