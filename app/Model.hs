@@ -121,10 +121,9 @@ selectedPoint _ =
 type ModelDiagram b = QDiagram b V2 Double Selector
 
 buildModelDiagram :: Renderable (Path V2 Double) b => Model -> ModelDiagram b
-buildModelDiagram (Model strokes sel) =
-  (rectEnvelope (0 ^& 0) (1 ^& 1) dia) # bg' white
+buildModelDiagram (Model strokes sel) = rectEnvelope (0 ^& 0) (1 ^& 1) $
+  mconcat $ reverse $ map (uncurry ofStroke) $ zip [0..] strokes
   where
-    dia = mconcat $ reverse $ map (uncurry ofStroke) $ zip [0..] strokes
     bg' c d = d <> (boundingRect d # lwO 0 # fc c # value NullSelector)
 
     ofStroke sn stroke

@@ -1,9 +1,10 @@
-resolver: lts-5.5
+resolver: lts-5.11
 compiler-check: newer-minor
 packages:
 - .
 - glyph
 extra-deps:
+- diagrams-wx-0.1.0.0
 - reactive-banana-1.1.0.0
 - wx-0.92.2.0
 - wxc-0.92.2.0

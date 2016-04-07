@@ -21,18 +21,17 @@
 import Data.Maybe
 import Data.Version
 
-import Diagrams.Prelude (P2, (^&))
-import Diagrams.Backend.Rasterific
+import Diagrams.Prelude (P2, (^&), dims2D)
+import Diagrams.Backend.Cairo
+import Diagrams.Backend.WX
 
 import Graphics.UI.WX
-
-import Graphics.UI.WXCore.Events
-import Graphics.UI.WXCore.WxcClassesAL
+import Graphics.UI.WXCore.WxcClassesAL (imageCreateSized)
+import Graphics.UI.WXCore.WxcClassTypes (Image)
 
 import Reactive.Banana
 import Reactive.Banana.WX
 
-import Glyph.Render
 import Glyph.Types
 
 import Paths_glyph_editor
@@ -45,6 +44,8 @@ main = start $ do
   f <- frame [text := "Glyph Editor " ++ showVersion version]
   p <- panel f []
   l <- singleListBox f []
+
+  i <- imageCreateSized $ sz 300 300
 
   addButton   <- button f [text := "Add"]
   delButton   <- button f [text := "Remove"]
@@ -94,24 +95,25 @@ main = start $ do
               MouseLeftDown{} -> True
               _ -> False
         let eAddPoint = fmap pointToP2 $ filterMouse eMouse $ \case
-              MouseLeftDown _ mod -> mod == justShift
+              MouseLeftDown _ m -> m == justShift
               _ -> False
         let eDelPoint = fmap pointToP2 $ filterMouse eMouse $ \case
-              MouseLeftDown _ mod -> mod == justControl
+              MouseLeftDown _ m -> m == justControl
               _ -> False
         let eDragPoint = fmap pointToP2 $ filterMouse eMouse $ \case
               MouseLeftDrag {} -> True
               _ -> False
 
-        paintB p $ paintPanel <$> bDiagram
+        paintB p $ paintPanel i <$> bDiagram
         --reactimate $ print <$> eModel
 
   network <- compile networkDescription
   actuate network
 
-paintPanel :: ModelDiagram Rasterific -> DC a -> Rect -> IO ()
-paintPanel diagram dc rect =
-  drawDiagram dc diagram $ rect { rectWidth = 300, rectHeight = 300 }
+paintPanel :: Image () -> ModelDiagram Cairo -> DC a -> Rect -> IO ()
+paintPanel image diagram dc rect = do
+  renderDiagramToImage diagram (dims2D 300 300) white image
+  drawImage dc image (Point (rectLeft rect) (rectTop rect)) []
 
 pointToP2 :: Point -> P2 Double
 pointToP2 (Point x y) = (fromIntegral x / 300) ^& (1 - fromIntegral y / 300)
